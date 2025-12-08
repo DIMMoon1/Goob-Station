@@ -6,7 +6,7 @@ using Content.Shared.Mobs.Systems;
 
 namespace Content.Server._CorvaxGoob.Deathmatch_CS;
 
-public sealed class Observer : EntitySystem
+public sealed class CSObserver : EntitySystem
 {
     [Dependency] private readonly GameTicker _gameTicker = default!;
     [Dependency] private readonly CSRuleSystem _csRuleSystem = default!;
@@ -25,7 +25,7 @@ public sealed class Observer : EntitySystem
             if (!_gameTicker.IsGameRuleActive(uId, gRuleC))
                 continue;
 
-            foreach (var session in _csRuleSystem.Sessions)
+            foreach (var session in _csRuleSystem.PSessions)
                 if (session.MapId == EntityManager.GetComponent<TransformComponent>(uid).MapID)
                 {
                     if (!session.Players.Contains(uid)) session.Players.Add(uid);

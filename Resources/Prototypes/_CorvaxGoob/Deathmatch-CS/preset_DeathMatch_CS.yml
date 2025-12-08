@@ -20,8 +20,6 @@
     numberOfSessions: 4
     rewardSpawns:
     - id: Telecrystal10
-  #- type: RespawnTracker
-  #  respawnDelay: 5
 
 - type: gameMapPool
   id: DeathMatchMapPool_CS

@@ -8,4 +8,8 @@ public sealed partial class IsFighterComponent : Component
     /// </summary>
     [DataField("isFighter"), ViewVariables(VVAccess.ReadWrite)]
     public bool IsFighter = true;
+
+    [DataField("command"), ViewVariables(VVAccess.ReadWrite)]
+    public int Command = 1;
+
 }

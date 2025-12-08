@@ -1,7 +1,9 @@
+using Content.Server.Administration.Systems;
 using Content.Server.GameTicking;
 using Content.Server.GameTicking.Rules;
 using Content.Server.Ghost.Roles.Components;
 using Content.Server.Maps;
+using Content.Shared.GameTicking;
 using Content.Shared.GameTicking.Components;
 using Content.Shared.Mind.Components;
 using Content.Shared.Mobs;
@@ -14,6 +16,12 @@ using System.Linq;
 
 namespace Content.Server._CorvaxGoob.Deathmatch_CS;
 
+public sealed class Session
+{
+    public MapId MapId;
+    public List<EntityUid> Players = new();
+}
+
 public sealed class CSRuleSystem : GameRuleSystem<CSRuleComponent>
 {
     [Dependency] private readonly MapSystem _map = default!;
@@ -21,26 +29,29 @@ public sealed class CSRuleSystem : GameRuleSystem<CSRuleComponent>
     [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly MobStateSystem _mobStateSystem = default!;
 
-    public List<Session> Sessions = new();
-    public sealed class Session
-    {
-        public MapId MapId;
-        public List<EntityUid> Players = new();
-    }
+    private List<Session> _sessions = new();
+    public List<Session> PSessions => _sessions;
 
     public override void Initialize()
     {
         base.Initialize();
         SubscribeLocalEvent<GameRunLevelChangedEvent>(MapClearing);
         SubscribeLocalEvent<GameRuleStartedEvent>(RoundStart);
+        SubscribeLocalEvent<RoundRestartCleanupEvent>(RoundEnd);
 
         SubscribeLocalEvent<IsFighterComponent, MobStateChangedEvent>(OnKillReported);
         SubscribeLocalEvent<IsFighterComponent, PlayerDetachedEvent>(PlayerHasDisconnectednected);
+        SubscribeLocalEvent<IsFighterComponent, EraseEvent>(EraseАPlayer);
+        SubscribeLocalEvent<IsFighterComponent, EntityTerminatingEvent>(DeleteАPlayer);
     }
 
     private void RoundStart(ref GameRuleStartedEvent _)
     {
         NewSession();
+    }
+    private void RoundEnd(RoundRestartCleanupEvent _)
+    {
+        _sessions.Clear();
     }
 
     public void NewSession()
@@ -51,7 +62,7 @@ public sealed class CSRuleSystem : GameRuleSystem<CSRuleComponent>
             if (!GameTicker.IsGameRuleActive(uId, gRuleC))
                 return;
 
-            if ((this.Sessions?.Count ?? 0) < csRuleC.NumberOfSessions)
+            if ((this._sessions?.Count ?? 0) < csRuleC.NumberOfSessions)
             {
                 Session newsession = new();
                 GameMapPrototype? protoMap;
@@ -65,26 +76,7 @@ public sealed class CSRuleSystem : GameRuleSystem<CSRuleComponent>
                 }
 
                 Addmap(out newsession.MapId, protoMap);
-                Sessions?.Add(newsession);
-            }
-        }
-    }
-
-    private void MapClearing(GameRunLevelChangedEvent ev)
-    {
-        var query = EntityQueryEnumerator<CSRuleComponent, GameRuleComponent>();
-        while (query.MoveNext(out var uId, out _, out var gRuleC))
-        {
-            if (!GameTicker.IsGameRuleActive(uId, gRuleC))
-                return;
-
-            var activeMapIds = new HashSet<MapId>(Sessions.Select(s => s.MapId));
-            foreach (var mapId in _map.GetAllMapIds())
-            {
-                if (_map.MapExists(mapId) && !activeMapIds.Contains(mapId))
-                {
-                    _map.DeleteMap(mapId);
-                }
+                _sessions?.Add(newsession);
             }
         }
     }
@@ -100,18 +92,45 @@ public sealed class CSRuleSystem : GameRuleSystem<CSRuleComponent>
         _map.InitializeMap(mapId);
     }
 
+    private void MapClearing(GameRunLevelChangedEvent ev)
+    {
+        var query = EntityQueryEnumerator<CSRuleComponent, GameRuleComponent>();
+        while (query.MoveNext(out var uId, out _, out var gRuleC))
+        {
+            if (!GameTicker.IsGameRuleActive(uId, gRuleC))
+                return;
+
+            var activeMapIds = new HashSet<MapId>(_sessions.Select(s => s.MapId));
+            foreach (var mapId in _map.GetAllMapIds())
+            {
+                if (_map.MapExists(mapId) && !activeMapIds.Contains(mapId))
+                {
+                    _map.DeleteMap(mapId);
+                }
+            }
+        }
+    }
+
     private void OnKillReported(EntityUid uid, IsFighterComponent _, MobStateChangedEvent args)
     {
-        if (MobState.Dead != args.NewMobState || Sessions == null) return;
+        if (MobState.Dead != args.NewMobState || _sessions == null) return;
         RemovingRromSession(uid);
     }
     private void PlayerHasDisconnectednected(EntityUid uid, IsFighterComponent _, PlayerDetachedEvent args)
     {
         RemovingRromSession(uid);
     }
+    private void EraseАPlayer(EntityUid uid, IsFighterComponent _, EraseEvent args)
+    {
+        RemovingRromSession(uid);
+    }
+    private void DeleteАPlayer(EntityUid uid, IsFighterComponent _, EntityTerminatingEvent args)
+    {
+        RemovingRromSession(uid);
+    }
     private void RemovingRromSession(EntityUid uid)
     {
-        foreach (var session in Sessions)
+        foreach (var session in _sessions)
         {
             if (!session.Players.Contains(uid)) continue;
             session.Players.Remove(uid);
@@ -129,7 +148,7 @@ public sealed class CSRuleSystem : GameRuleSystem<CSRuleComponent>
                 if (count == 0)
                 {
                     _map.DeleteMap(session.MapId);
-                    Sessions.Remove(session);
+                    _sessions.Remove(session);
                     NewSession();
                 }
             }
@@ -137,6 +156,6 @@ public sealed class CSRuleSystem : GameRuleSystem<CSRuleComponent>
         }
     }
     // ТуДу
-    // проверка связии айди
-    // проверка на случай трансформации
+    // разделение на команды
+    // проверка связности айди
 }
