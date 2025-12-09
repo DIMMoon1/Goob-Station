@@ -6,8 +6,8 @@
   minPlayers: 0
   maxPlayers: 100
   stations:
-    CorvaxBox:
-      stationProto: StandardNanotrasenStation
+    Box_Arena:
+      stationProto: CSArenaMap
       components:
         - type: StationNameSetup
           mapNameTemplate: '{0} Box Station {1}'
