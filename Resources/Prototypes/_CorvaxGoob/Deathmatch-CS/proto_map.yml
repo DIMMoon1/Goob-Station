@@ -7,7 +7,7 @@
   maxPlayers: 100
   stations:
     Box_Arena:
-      stationProto: StandardStationArena
+      stationProto: CSArenaMap
       components:
         - type: StationNameSetup
           mapNameTemplate: '{0} Box Station {1}'
