@@ -58,6 +58,7 @@
   - type: Loadout
     prototypes: [ SyndicateTDMGear ]
   - type: IsFighter
+    command: 1
   - type: Mind
     preventGhosting: true
     preventSuicide: true
@@ -99,6 +100,7 @@
   - type: Loadout
     prototypes: [ NanoTrasenTDMGear ]
   - type: IsFighter
+    command: 2
   - type: Mind
     preventGhosting: true
     preventSuicide: true

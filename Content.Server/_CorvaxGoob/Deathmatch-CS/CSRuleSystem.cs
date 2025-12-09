@@ -111,51 +111,47 @@ public sealed class CSRuleSystem : GameRuleSystem<CSRuleComponent>
         }
     }
 
-    private void OnKillReported(EntityUid uid, IsFighterComponent _, MobStateChangedEvent args)
+    private void OnKillReported(EntityUid uid, IsFighterComponent isFighterComp, MobStateChangedEvent args)
     {
         if (MobState.Dead != args.NewMobState || _sessions == null) return;
-        RemovingRromSession(uid);
+        RemovingRromSession(uid, isFighterComp);
     }
-    private void PlayerHasDisconnectednected(EntityUid uid, IsFighterComponent _, PlayerDetachedEvent args)
+    private void PlayerHasDisconnectednected(EntityUid uid, IsFighterComponent isFighterComp, PlayerDetachedEvent args)
     {
-        RemovingRromSession(uid);
+        RemovingRromSession(uid, isFighterComp);
     }
-    private void EraseАPlayer(EntityUid uid, IsFighterComponent _, EraseEvent args)
+    private void EraseАPlayer(EntityUid uid, IsFighterComponent isFighterComp, EraseEvent args)
     {
-        RemovingRromSession(uid);
+        RemovingRromSession(uid, isFighterComp);
     }
-    private void DeleteАPlayer(EntityUid uid, IsFighterComponent _, EntityTerminatingEvent args)
+    private void DeleteАPlayer(EntityUid uid, IsFighterComponent isFighterComp, EntityTerminatingEvent args)
     {
-        RemovingRromSession(uid);
+        RemovingRromSession(uid, isFighterComp);
     }
-    private void RemovingRromSession(EntityUid uid)
+    private void RemovingRromSession(EntityUid uid, IsFighterComponent isFighterComp)
     {
         foreach (var session in _sessions)
         {
             if (!session.Players.Contains(uid)) continue;
             session.Players.Remove(uid);
 
-            if (session.Players.Count == 0)
+            foreach (var playerUid in session.Players)
             {
-                var query2 = EntityQueryEnumerator<IsFighterComponent, GhostRoleComponent, TransformComponent>();
-                int count = 0;
-                while (query2.MoveNext(out var guid, out _, out _, out var xform))
-                {
-                    if (xform.MapID == session.MapId)
-                        if (EntityManager.TryGetComponent(guid, out MindContainerComponent? mindContC))
-                            if (mindContC.Mind == null && _mobStateSystem.IsAlive(guid)) count++;
-                }
-                if (count == 0)
-                {
-                    _map.DeleteMap(session.MapId);
-                    _sessions.Remove(session);
-                    NewSession();
-                }
+                if (EntityManager.TryGetComponent(playerUid, out IsFighterComponent? teammatesComp))
+                    if (teammatesComp.Command == isFighterComp.Command) return;
             }
-            break;
+
+            var query2 = EntityQueryEnumerator<IsFighterComponent, GhostRoleComponent, TransformComponent, MindContainerComponent>();
+            while (query2.MoveNext(out var guid, out var timmFighterComp, out _, out var xform, out var mindContC)) // остались ли незанятые роли
+            {
+                if (xform.MapID == session.MapId)
+                    if (mindContC.Mind == null && _mobStateSystem.IsAlive(guid) && timmFighterComp.Command == isFighterComp.Command) return;
+            }
+
+            _map.DeleteMap(session.MapId);
+            _sessions.Remove(session);
+            NewSession();
+            return;
         }
     }
-    // ТуДу
-    // разделение на команды
-    // проверка связности айди
 }
